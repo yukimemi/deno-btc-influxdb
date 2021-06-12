@@ -1,7 +1,7 @@
 import { ccxt, delay, influx } from "./deps.ts";
 
 const BTCUSD = "BTC/USD";
-const FETCH_BALANCE_INTERVAL = 60_000;
+const FETCH_BALANCE_INTERVAL = 30_000;
 
 const apiKey = Deno.env.get("CCXT_API_KEY") ?? "";
 const secret = Deno.env.get("CCXT_API_SECRET") ?? "";
@@ -47,17 +47,18 @@ const main = async () => {
       const btc = balance.BTC.total;
       const btc2 = balance2.BTC.total;
       console.log({ btc, btc2 });
+      const now = new Date();
       // write point with the current (client-side) timestamp
       const point1 = new influx.Point("BTC")
         .tag("exchange", "ex1")
         .tag("type", "total")
-        .floatField("value", btc);
+        .floatField("value", btc).timestamp(now);
       writeApi.writePoint(point1);
       console.log(` ${point1}`);
       const point2 = new influx.Point("BTC")
         .tag("exchange", "ex2")
         .tag("type", "total")
-        .floatField("value", btc2);
+        .floatField("value", btc2).timestamp(now);
       writeApi.writePoint(point2);
       console.log(` ${point2}`);
       await delay(FETCH_BALANCE_INTERVAL);
