@@ -9,6 +9,9 @@ const apiKey2 = Deno.env.get("CCXT_API_KEY2") ?? "";
 const secret2 = Deno.env.get("CCXT_API_SECRET2") ?? "";
 const testnet = !!Deno.env.get("TESTNET") ?? false;
 
+const apiKeyProd = Deno.env.get("CCXT_API_KEY_PROD") ?? "";
+const secretProd = Deno.env.get("CCXT_API_SECRET_PROD") ?? "";
+
 const influxUrl = Deno.env.get("INFLUX_URL") ?? "";
 const influxToken = Deno.env.get("INFLUX_TOKEN") ?? "";
 const influxOrg = Deno.env.get("INFLUX_ORG") ?? "";
@@ -26,11 +29,41 @@ const writeApi = new influx.InfluxDB({ url: influxUrl, token: influxToken })
 // setup default tags for all writes through this API
 // writeApi.useDefaultTags({ account: ACCOUNT });
 
+const logTicker = async (ec: ccxt.Exchange, now: Date) => {
+  const tick = await ec.fetchTicker(BTCUSD);
+  const point = new influx.Point("BTC")
+    .tag("exchange", "BTCUSD")
+    .tag("price", "close")
+    .floatField("value", tick.close).timestamp(now);
+  writeApi.writePoint(point);
+  console.log(` ${point}`);
+};
+
+const logBalance = async (ec: ccxt.Exchange, name: string, now: Date) => {
+  const balance = await ec.fetchBalance();
+  const btc = balance.BTC;
+  // write point with the current (client-side) timestamp
+  ["free", "used", "total"].forEach((t) => {
+    const type = t as keyof typeof balance.BTC;
+    const point = new influx.Point("BTC")
+      .tag("exchange", name)
+      .tag("type", t)
+      .floatField("value", btc[type]).timestamp(now);
+    writeApi.writePoint(point);
+    console.log(` ${point}`);
+  });
+};
+
 const main = async () => {
   const ec = new ccxt.bybit({ apiKey, secret, enableRateLimit: true });
   const ec2 = new ccxt.bybit({
     apiKey: apiKey2,
     secret: secret2,
+    enableRateLimit: true,
+  });
+  const ecProd = new ccxt.bybit({
+    apiKey: apiKeyProd,
+    secret: secretProd,
     enableRateLimit: true,
   });
 
@@ -41,26 +74,11 @@ const main = async () => {
 
   try {
     while (true) {
-      const balance = await ec.fetchBalance();
-      const balance2 = await ec2.fetchBalance();
-      console.log({ balance, balance2 });
-      const btc = balance.BTC.total;
-      const btc2 = balance2.BTC.total;
-      console.log({ btc, btc2 });
       const now = new Date();
-      // write point with the current (client-side) timestamp
-      const point1 = new influx.Point("BTC")
-        .tag("exchange", "ex1")
-        .tag("type", "total")
-        .floatField("value", btc).timestamp(now);
-      writeApi.writePoint(point1);
-      console.log(` ${point1}`);
-      const point2 = new influx.Point("BTC")
-        .tag("exchange", "ex2")
-        .tag("type", "total")
-        .floatField("value", btc2).timestamp(now);
-      writeApi.writePoint(point2);
-      console.log(` ${point2}`);
+      await logBalance(ec, "ex1", now);
+      await logBalance(ec2, "ex2", now);
+      await logBalance(ecProd, "exProd1", now);
+      await logTicker(ec, now);
       await delay(FETCH_BALANCE_INTERVAL);
     }
   } catch (e) {
