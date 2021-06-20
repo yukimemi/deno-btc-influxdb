@@ -11,6 +11,8 @@ const testnet = !!Deno.env.get("TESTNET") ?? false;
 
 const apiKeyProd = Deno.env.get("CCXT_API_KEY_PROD") ?? "";
 const secretProd = Deno.env.get("CCXT_API_SECRET_PROD") ?? "";
+const apiKeyProd2 = Deno.env.get("CCXT_API_KEY_PROD2") ?? "";
+const secretProd2 = Deno.env.get("CCXT_API_SECRET_PROD2") ?? "";
 
 const influxUrl = Deno.env.get("INFLUX_URL") ?? "";
 const influxToken = Deno.env.get("INFLUX_TOKEN") ?? "";
@@ -66,6 +68,11 @@ const main = async () => {
     secret: secretProd,
     enableRateLimit: true,
   });
+  const ecProd2 = new ccxt.bybit({
+    apiKey: apiKeyProd2,
+    secret: secretProd2,
+    enableRateLimit: true,
+  });
 
   if (testnet) {
     ec.urls.api = ec.urls.test;
@@ -78,6 +85,7 @@ const main = async () => {
       await logBalance(ec, "ex1", now);
       await logBalance(ec2, "ex2", now);
       await logBalance(ecProd, "exProd1", now);
+      await logBalance(ecProd2, "exProd2", now);
       await logTicker(ec, now);
       await delay(FETCH_BALANCE_INTERVAL);
     }
