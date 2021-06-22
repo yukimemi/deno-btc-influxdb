@@ -13,13 +13,13 @@ const apiKeyProd = Deno.env.get("CCXT_API_KEY_PROD") ?? "";
 const secretProd = Deno.env.get("CCXT_API_SECRET_PROD") ?? "";
 const apiKeyProd2 = Deno.env.get("CCXT_API_KEY_PROD2") ?? "";
 const secretProd2 = Deno.env.get("CCXT_API_SECRET_PROD2") ?? "";
+const apiKeyProd3 = Deno.env.get("CCXT_API_KEY_PROD3") ?? "";
+const secretProd3 = Deno.env.get("CCXT_API_SECRET_PROD3") ?? "";
 
 const influxUrl = Deno.env.get("INFLUX_URL") ?? "";
 const influxToken = Deno.env.get("INFLUX_TOKEN") ?? "";
 const influxOrg = Deno.env.get("INFLUX_ORG") ?? "";
 const influxBucket = Deno.env.get("INFLUX_BUCKET") ?? "";
-
-// const ACCOUNT = "gce-btc-test";
 
 // create a write API, expecting point timestamps in nanoseconds (can be also 's', 'ms', 'us')
 const writeApi = new influx.InfluxDB({ url: influxUrl, token: influxToken })
@@ -41,8 +41,7 @@ const logTicker = async (ec: ccxt.Exchange, now: Date) => {
   console.log(` ${point}`);
 };
 
-const logBalance = async (ec: ccxt.Exchange, name: string, now: Date) => {
-  const balance = await ec.fetchBalance();
+const logBalance = (balance: any, name: string, now: Date) => {
   const btc = balance.BTC;
   // write point with the current (client-side) timestamp
   ["free", "used", "total"].forEach((t) => {
@@ -73,6 +72,11 @@ const main = async () => {
     secret: secretProd2,
     enableRateLimit: true,
   });
+  const ecProd3 = new ccxt.bybit({
+    apiKey: apiKeyProd3,
+    secret: secretProd3,
+    enableRateLimit: true,
+  });
 
   if (testnet) {
     ec.urls.api = ec.urls.test;
@@ -82,10 +86,22 @@ const main = async () => {
   try {
     while (true) {
       const now = new Date();
-      await logBalance(ec, "ex1", now);
-      await logBalance(ec2, "ex2", now);
-      await logBalance(ecProd, "exProd1", now);
-      await logBalance(ecProd2, "exProd2", now);
+
+      const balances = await Promise.all(
+        [ec, ec2, ecProd, ecProd2, ecProd3].map(async (x) =>
+          await x.fetchBalance()
+        ),
+      );
+
+      // console.log({ balances });
+
+      if (balances.some((x) => x.BTC.total === 0)) continue;
+
+      logBalance(balances[0], "ex1", now);
+      logBalance(balances[1], "ex2", now);
+      logBalance(balances[2], "exProd1", now);
+      logBalance(balances[3], "exProd2", now);
+      logBalance(balances[4], "exProd3", now);
       await logTicker(ec, now);
       await delay(FETCH_BALANCE_INTERVAL);
     }
