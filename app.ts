@@ -37,6 +37,11 @@ const logTicker = async (ec: ccxt.Exchange, now: Date) => {
     .tag("exchange", "BTCUSD")
     .tag("price", "close")
     .floatField("value", tick.close).timestamp(now);
+  if (ec.urls.api === ec.urls.test) {
+    point.tag("testnet", "true");
+  } else {
+    point.tag("testnet", "false");
+  }
   writeApi.writePoint(point);
   console.log(` ${point}`);
 };
@@ -103,6 +108,7 @@ const main = async () => {
       logBalance(balances[3], "exProd2", now);
       logBalance(balances[4], "exProd3", now);
       await logTicker(ec, now);
+      await logTicker(ecProd, now);
       await delay(FETCH_BALANCE_INTERVAL);
     }
   } catch (e) {
