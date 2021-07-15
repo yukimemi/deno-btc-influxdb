@@ -15,6 +15,8 @@ const apiKeyProd2 = Deno.env.get("CCXT_API_KEY_PROD2") ?? "";
 const secretProd2 = Deno.env.get("CCXT_API_SECRET_PROD2") ?? "";
 const apiKeyProd3 = Deno.env.get("CCXT_API_KEY_PROD3") ?? "";
 const secretProd3 = Deno.env.get("CCXT_API_SECRET_PROD3") ?? "";
+const apiKeyProd4 = Deno.env.get("CCXT_API_KEY_PROD4") ?? "";
+const secretProd4 = Deno.env.get("CCXT_API_SECRET_PROD4") ?? "";
 
 const influxUrl = Deno.env.get("INFLUX_URL") ?? "";
 const influxToken = Deno.env.get("INFLUX_TOKEN") ?? "";
@@ -82,6 +84,11 @@ const main = async () => {
     secret: secretProd3,
     enableRateLimit: true,
   });
+  const ecProd4 = new ccxt.bybit({
+    apiKey: apiKeyProd4,
+    secret: secretProd4,
+    enableRateLimit: true,
+  });
 
   if (testnet) {
     ec.urls.api = ec.urls.test;
@@ -93,9 +100,10 @@ const main = async () => {
       const now = new Date();
 
       const balances = await Promise.all(
-        [ec, ec2, ecProd, ecProd2, ecProd3].map(async (x) =>
-          await x.fetchBalance()
-        ),
+        [ec, ec2, ecProd, ecProd2, ecProd3, ecProd4].map(async (x) => {
+          await delay(1_000);
+          return await x.fetchBalance();
+        }),
       );
 
       // console.log({ balances });
@@ -107,6 +115,7 @@ const main = async () => {
       logBalance(balances[2], "exProd1", now);
       logBalance(balances[3], "exProd2", now);
       logBalance(balances[4], "exProd3", now);
+      logBalance(balances[5], "exProd4", now);
       await logTicker(ec, now);
       await logTicker(ecProd, now);
       await delay(FETCH_BALANCE_INTERVAL);
